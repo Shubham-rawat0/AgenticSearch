@@ -2,127 +2,96 @@ import React from "react";
 
 const PremiumTypingAnimation = () => {
   return (
-    <div className="flex items-center">
-      <div className="flex items-center space-x-1.5">
-        <div
-          className="w-1.5 h-1.5 bg-gray-400/70 rounded-full animate-pulse"
-          style={{ animationDuration: "1s", animationDelay: "0ms" }}
-        ></div>
-        <div
-          className="w-1.5 h-1.5 bg-gray-400/70 rounded-full animate-pulse"
-          style={{ animationDuration: "1s", animationDelay: "300ms" }}
-        ></div>
-        <div
-          className="w-1.5 h-1.5 bg-gray-400/70 rounded-full animate-pulse"
-          style={{ animationDuration: "1s", animationDelay: "600ms" }}
-        ></div>
-      </div>
+    <div className="flex items-center gap-1.5">
+      {[0, 150, 300].map((delay, i) => (
+        <span
+          key={i}
+          className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce"
+          style={{ animationDelay: `${delay}ms` }}
+        />
+      ))}
     </div>
   );
 };
 
-const SearchStages = ({ searchInfo }:any) => {
-  if (!searchInfo || !searchInfo.stages || searchInfo.stages.length === 0)
-    return null;
+const SourceChip = ({ url }: any) => {
+  let hostname = "";
+  try {
+    hostname = new URL(url).hostname.replace("www.", "");
+  } catch {
+    hostname = url.slice(0, 30);
+  }
 
   return (
-    <div className="mb-3 mt-1 relative pl-4">
-      {/* Search Process UI */}
-      <div className="flex flex-col space-y-4 text-sm text-gray-700">
-        {/* Searching Stage */}
+    <a
+      href={url}
+      target="_blank"
+      className="px-3 py-1.5 text-xs rounded-full bg-white border border-gray-200 hover:bg-gray-100 transition"
+    >
+      {hostname}
+    </a>
+  );
+};
+
+const SearchStages = ({ searchInfo }: any) => {
+  if (!searchInfo?.stages?.length) return null;
+
+  return (
+    <div className="mb-4 mt-1 pl-4 animate-fadeIn">
+      <div className="space-y-5 text-sm text-gray-700">
+        
+        {/* Searching */}
         {searchInfo.stages.includes("searching") && (
           <div className="relative">
-            {/* Green dot */}
-            <div className="absolute -left-3 top-1 w-2.5 h-2.5 bg-teal-400 rounded-full z-10 shadow-sm"></div>
-
-            {/* Connecting line to next item if reading exists */}
-            {searchInfo.stages.includes("reading") && (
-              <div className="absolute -left-[7px] top-3 w-0.5 h-[calc(100%+1rem)] bg-gradient-to-b from-teal-300 to-teal-200"></div>
-            )}
-
-            <div className="flex flex-col">
-              <span className="font-medium mb-2 ml-2">Searching the web</span>
-
-              {/* Search Query in box styling */}
-              <div className="flex flex-wrap gap-2 pl-2 mt-1">
-                <div className="bg-gray-100 text-xs px-3 py-1.5 rounded border border-gray-200 inline-flex items-center">
-                  <svg
-                    className="w-3 h-3 mr-1.5 text-gray-500"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth="2"
-                      d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                    ></path>
-                  </svg>
-                  {searchInfo.query}
-                </div>
+            <div className="absolute -left-3 top-1 w-2 h-2 bg-emerald-500 rounded-full" />
+            <div className="ml-2">
+              <p className="font-medium text-gray-800 mb-2">
+                Searching the web
+              </p>
+              <div className="inline-flex items-center gap-2 text-xs px-3 py-1.5 rounded-md bg-gray-100 border border-gray-200">
+                🔍 {searchInfo.query}
               </div>
             </div>
           </div>
         )}
 
-        {/* Reading Stage */}
+        {/* Reading */}
         {searchInfo.stages.includes("reading") && (
-          <div className="relative">
-            {/* Green dot */}
-            <div className="absolute -left-3 top-1 w-2.5 h-2.5 bg-teal-400 rounded-full z-10 shadow-sm"></div>
+          <div className="relative animate-slideUp">
+            <div className="absolute -left-3 top-1 w-2 h-2 bg-emerald-500 rounded-full" />
+            <div className="ml-2">
+              <p className="font-medium text-gray-800 mb-2">
+                Reading sources
+              </p>
 
-            <div className="flex flex-col">
-              <span className="font-medium mb-2 ml-2">Reading</span>
-
-              {/* Search Results */}
-              {searchInfo.urls && searchInfo.urls.length > 0 && (
-                <div className="pl-2 space-y-1">
-                  <div className="flex flex-wrap gap-2">
-                    {Array.isArray(searchInfo.urls) ? (
-                      searchInfo.urls.map((url:any, index:any) => (
-                        <div
-                          key={index}
-                          className="bg-gray-100 text-xs px-3 py-1.5 rounded border border-gray-200 truncate max-w-[200px] transition-all duration-200 hover:bg-gray-50"
-                        >
-                          {typeof url === "string"
-                            ? url
-                            : JSON.stringify(url).substring(0, 30)}
-                        </div>
-                      ))
-                    ) : (
-                      <div className="bg-gray-100 text-xs px-3 py-1.5 rounded border border-gray-200 truncate max-w-[200px] transition-all duration-200 hover:bg-gray-50">
-                        {typeof searchInfo.urls === "string"
-                          ? searchInfo.urls.substring(0, 30)
-                          : JSON.stringify(searchInfo.urls).substring(0, 30)}
-                      </div>
-                    )}
-                  </div>
+              {searchInfo.urls?.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {searchInfo.urls.map((url: string, i: number) => (
+                    <SourceChip key={i} url={url} />
+                  ))}
                 </div>
               )}
             </div>
           </div>
         )}
 
-        {/* Writing Stage */}
+        {/* Writing */}
         {searchInfo.stages.includes("writing") && (
-          <div className="relative">
-            {/* Green dot with subtle glow effect */}
-            <div className="absolute -left-3 top-1 w-2.5 h-2.5 bg-teal-400 rounded-full z-10 shadow-sm"></div>
-            <span className="font-medium pl-2">Writing answer</span>
+          <div className="relative animate-fadeIn">
+            <div className="absolute -left-3 top-1 w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
+            <span className="ml-2 font-medium text-gray-800">
+              Writing response
+            </span>
           </div>
         )}
 
-        {/* Error Message */}
+        {/* Error */}
         {searchInfo.stages.includes("error") && (
           <div className="relative">
-            {/* Red dot over the vertical line */}
-            <div className="absolute -left-3 top-1 w-2.5 h-2.5 bg-red-400 rounded-full z-10 shadow-sm"></div>
-            <span className="font-medium">Search error</span>
-            <div className="pl-4 text-xs text-red-500 mt-1">
-              {searchInfo.error || "An error occurred during search."}
-            </div>
+            <div className="absolute -left-3 top-1 w-2 h-2 bg-red-500 rounded-full" />
+            <span className="ml-2 text-red-500 font-medium">
+              Search failed
+            </span>
           </div>
         )}
       </div>
@@ -130,41 +99,43 @@ const SearchStages = ({ searchInfo }:any) => {
   );
 };
 
-const MessageArea = ({ messages }:any) => {
+const MessageArea = ({ messages }: any) => {
   return (
-    <div
-      className="flex-grow overflow-y-auto bg-[#FCFCF8] border-b border-gray-100"
-      style={{ minHeight: 0 }}
-    >
-      <div className="max-w-4xl mx-auto p-6">
-        {messages.map((message:any) => (
+    <div className="flex-grow overflow-y-auto bg-[#f7f7f8] border-b border-gray-200">
+      <div className="max-w-3xl mx-auto px-6 py-8 space-y-6">
+        {messages.map((message: any) => (
           <div
             key={message.id}
-            className={`flex ${message.isUser ? "justify-end" : "justify-start"} mb-5`}
+            className={`flex ${
+              message.isUser ? "justify-end" : "justify-start"
+            }`}
           >
-            <div className="flex flex-col max-w-md">
-              {/* Search Status Display - Now ABOVE the message */}
+            <div className="flex flex-col max-w-[80%]">
+              {/* SEARCH STAGES */}
               {!message.isUser && message.searchInfo && (
                 <SearchStages searchInfo={message.searchInfo} />
               )}
 
-              {/* Message Content */}
+              {/* MESSAGE */}
               <div
-                className={`rounded-lg py-3 px-5 ${
-                  message.isUser
-                    ? "bg-gradient-to-br from-[#5E507F] to-[#4A3F71] text-white rounded-br-none shadow-md"
-                    : "bg-[#F3F3EE] text-gray-800 border border-gray-200 rounded-bl-none shadow-sm"
-                }`}
+                className={`
+                  px-5 py-3 rounded-2xl text-sm leading-relaxed
+                  transition-all duration-200
+                  ${
+                    message.isUser
+                      ? "bg-[#2F2F2F] text-white rounded-br-sm"
+                      : "bg-white border border-gray-200 text-gray-800 rounded-bl-sm"
+                  }
+                `}
               >
                 {message.isLoading ? (
                   <PremiumTypingAnimation />
+                ) : message.content ? (
+                  message.content
                 ) : (
-                  message.content || (
-                    // Fallback if content is empty but not in loading state
-                    <span className="text-gray-400 text-xs italic">
-                      Waiting for response...
-                    </span>
-                  )
+                  <span className="text-gray-400 text-xs italic">
+                    Waiting for response...
+                  </span>
                 )}
               </div>
             </div>

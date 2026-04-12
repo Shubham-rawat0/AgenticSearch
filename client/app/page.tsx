@@ -24,7 +24,7 @@ export default function Home() {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: 1,
-      content: "System ready. Ask anything.",
+      content: "Welcome to Orion AI. How can I assist you today?",
       isUser: false,
     },
   ]);
