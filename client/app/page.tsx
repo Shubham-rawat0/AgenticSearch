@@ -1,9 +1,10 @@
 "use client";
 
+import React, { useState, useEffect, useRef } from "react";
+import { BookOpen, RefreshCw, ChevronRight } from "lucide-react";
 import Header from "@/components/Header";
-import InputBar from "@/components/InputBar";
+import InputBar from "@/components/Inputbar";
 import MessageArea from "@/components/MessageArea";
-import React, { useState } from "react";
 
 interface SearchInfo {
   stages: string[];
@@ -15,260 +16,264 @@ interface Message {
   id: number;
   content: string;
   isUser: boolean;
-  type: string;
   isLoading?: boolean;
   searchInfo?: SearchInfo;
 }
 
-const Home = () => {
+export default function Home() {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: 1,
-      content: "Hi there, how can I help you?",
+      content: "System ready. Ask anything.",
       isUser: false,
-      type: "message",
     },
   ]);
+
+  const [history, setHistory] = useState<
+    { id: string; query: string; checkpoint: string | null }[]
+  >([]);
+
   const [currentMessage, setCurrentMessage] = useState("");
-  const [checkpointId, setCheckpointId] = useState(null);
+  const [checkpointId, setCheckpointId] = useState<string | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
 
-  const handleSubmit = async (e:any) => {
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    scrollRef.current?.scrollTo({
+      top: scrollRef.current.scrollHeight,
+      behavior: "smooth",
+    });
+  }, [messages]);
+
+  const handleNewInquiry = () => {
+    setMessages([
+      {
+        id: 1,
+        content: "New session started.",
+        isUser: false,
+      },
+    ]);
+    setCheckpointId(null);
+  };
+
+  const restoreHistory = (item: any) => {
+    setMessages([
+      {
+        id: 1,
+        content: `Restored: "${item.query}"`,
+        isUser: false,
+      },
+    ]);
+    setCheckpointId(item.checkpoint);
+  };
+
+  const handleSubmit = async (e: any) => {
     e.preventDefault();
-    if (currentMessage.trim()) {
-      // First add the user message to the chat
-      const newMessageId =
-        messages.length > 0
-          ? Math.max(...messages.map((msg) => msg.id)) + 1
-          : 1;
+    if (!currentMessage.trim() || isProcessing) return;
 
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: newMessageId,
-          content: currentMessage,
-          isUser: true,
-          type: "message",
-        },
-      ]);
+    setIsProcessing(true);
 
-      const userInput = currentMessage;
-      setCurrentMessage(""); // Clear input field immediately
+    const userInput = currentMessage;
+    const userId = Date.now();
+    const aiId = userId + 1;
 
-      try {
-        // Create AI response placeholder
-        const aiResponseId = newMessageId + 1;
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: aiResponseId,
-            content: "",
-            isUser: false,
-            type: "message",
-            isLoading: true,
-            searchInfo: {
-              stages: [],
-              query: "",
-              urls: [],
-            },
-          },
-        ]);
+    setCurrentMessage("");
 
-        // Create URL with checkpoint ID if it exists
-        let url = `http://localhost:3000/chat_stream/${encodeURIComponent(userInput)}`;
-        if (checkpointId) {
-          url += `?checkpoint_id=${encodeURIComponent(checkpointId)}`;
-        }
+    // Save history
+    setHistory((prev) => [
+      { id: String(userId), query: userInput, checkpoint: checkpointId },
+      ...prev,
+    ]);
 
-        // Connect to SSE endpoint using EventSource
-        const eventSource = new EventSource(url);
-        let streamedContent = "";
-        let searchData:any = null;
-        let hasReceivedContent = false;
+    // Add messages
+    setMessages((prev) => [
+      ...prev,
+      { id: userId, content: userInput, isUser: true },
+      {
+        id: aiId,
+        content: "",
+        isUser: false,
+        isLoading: true,
+        searchInfo: { stages: ["Analyzing"], query: "", urls: [] },
+      },
+    ]);
 
-        // Process incoming messages
-        eventSource.onmessage = (event) => {
-          try {
-            const data = JSON.parse(event.data);
+    try {
+      let url = `http://127.0.0.1:8000/chat_stream/${encodeURIComponent(
+        userInput,
+      )}`;
 
-            if (data.type === "checkpoint") {
-              // Store the checkpoint ID for future requests
-              setCheckpointId(data.checkpoint_id);
-            } else if (data.type === "content") {
-              streamedContent += data.content;
-              hasReceivedContent = true;
+      if (checkpointId) {
+        url += `?checkpoint_id=${encodeURIComponent(checkpointId)}`;
+      }
 
-              // Update message with accumulated content
-              setMessages((prev) =>
-                prev.map((msg) =>
-                  msg.id === aiResponseId
-                    ? { ...msg, content: streamedContent, isLoading: false }
-                    : msg,
-                ),
-              );
-            } else if (data.type === "search_start") {
-              // Create search info with 'searching' stage
-              const newSearchInfo = {
-                stages: ["searching"],
-                query: data.query,
-                urls: [],
-              };
-              searchData = newSearchInfo;
+      const eventSource = new EventSource(url);
 
-              // Update the AI message with search info
-              setMessages((prev) =>
-                prev.map((msg) =>
-                  msg.id === aiResponseId
-                    ? {
-                        ...msg,
-                        content: streamedContent,
-                        searchInfo: newSearchInfo,
-                        isLoading: false,
-                      }
-                    : msg,
-                ),
-              );
-            } else if (data.type === "search_results") {
-              try {
-                // Parse URLs from search results
-                const urls =
-                  typeof data.urls === "string"
-                    ? JSON.parse(data.urls)
-                    : data.urls;
+      let streamed = "";
+      let searchData: SearchInfo = { stages: [], query: "", urls: [] };
 
-                // Update search info to add 'reading' stage (don't replace 'searching')
-                const newSearchInfo = {
-                  stages: searchData
-                    ? [...searchData.stages, "reading"]
-                    : ["reading"],
-                  query: searchData?.query || "",
-                  urls: urls,
-                };
-                searchData = newSearchInfo;
+      eventSource.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
 
-                // Update the AI message with search info
-                setMessages((prev) =>
-                  prev.map((msg) =>
-                    msg.id === aiResponseId
-                      ? {
-                          ...msg,
-                          content: streamedContent,
-                          searchInfo: newSearchInfo,
-                          isLoading: false,
-                        }
-                      : msg,
-                  ),
-                );
-              } catch (err) {
-                console.error("Error parsing search results:", err);
-              }
-            } else if (data.type === "search_error") {
-              // Handle search error
-              const newSearchInfo = {
-                stages: searchData
-                  ? [...searchData.stages, "error"]
-                  : ["error"],
-                query: searchData?.query || "",
-                error: data.error,
-                urls: [],
-              };
-              searchData = newSearchInfo;
-
-              setMessages((prev) =>
-                prev.map((msg) =>
-                  msg.id === aiResponseId
-                    ? {
-                        ...msg,
-                        content: streamedContent,
-                        searchInfo: newSearchInfo,
-                        isLoading: false,
-                      }
-                    : msg,
-                ),
-              );
-            } else if (data.type === "end") {
-              // When stream ends, add 'writing' stage if we had search info
-              if (searchData) {
-                const finalSearchInfo = {
-                  ...searchData,
-                  stages: [...searchData.stages, "writing"],
-                };
-
-                setMessages((prev) =>
-                  prev.map((msg) =>
-                    msg.id === aiResponseId
-                      ? {
-                          ...msg,
-                          searchInfo: finalSearchInfo,
-                          isLoading: false,
-                        }
-                      : msg,
-                  ),
-                );
-              }
-
-              eventSource.close();
-            }
-          } catch (error) {
-            console.error("Error parsing event data:", error, event.data);
+          // CHECKPOINT
+          if (data.type === "checkpoint") {
+            setCheckpointId(data.checkpoint_id);
+            return;
           }
-        };
 
-        // Handle errors
-        eventSource.onerror = (error) => {
-          console.error("EventSource error:", error);
-          eventSource.close();
+          // CONTENT
+          if (data.type === "content") {
+            streamed += data.content;
 
-          // Only update with error if we don't have content yet
-          if (!streamedContent) {
             setMessages((prev) =>
               prev.map((msg) =>
-                msg.id === aiResponseId
-                  ? {
-                      ...msg,
-                      content:
-                        "Sorry, there was an error processing your request.",
-                      isLoading: false,
-                    }
+                msg.id === aiId
+                  ? { ...msg, content: streamed, isLoading: false }
                   : msg,
               ),
             );
+            return;
           }
-        };
 
-        // Listen for end event
-        eventSource.addEventListener("end", () => {
-          eventSource.close();
-        });
-      } catch (error) {
-        console.error("Error setting up EventSource:", error);
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: newMessageId + 1,
-            content: "Sorry, there was an error connecting to the server.",
-            isUser: false,
-            type: "message",
-            isLoading: false,
-          },
-        ]);
-      }
+          // SEARCH START
+          if (data.type === "search_start") {
+            searchData = {
+              stages: ["searching"],
+              query: data.query,
+              urls: [],
+            };
+
+            setMessages((prev) =>
+              prev.map((msg) =>
+                msg.id === aiId ? { ...msg, searchInfo: searchData } : msg,
+              ),
+            );
+            return;
+          }
+
+          // SEARCH RESULTS (FIXED)
+          if (data.type === "search_results") {
+            let urls: string[] = [];
+
+            if (data.urls) {
+              urls =
+                typeof data.urls === "string"
+                  ? JSON.parse(data.urls)
+                  : data.urls;
+            } else if (data.results) {
+              urls = data.results.map((r: any) => r.url);
+            }
+
+            const mergedUrls = Array.from(
+              new Set([...(searchData.urls || []), ...urls]),
+            );
+
+            searchData = {
+              ...searchData,
+              urls: mergedUrls,
+              stages: [...searchData.stages, "reading"],
+            };
+
+            setMessages((prev) =>
+              prev.map((msg) =>
+                msg.id === aiId ? { ...msg, searchInfo: searchData } : msg,
+              ),
+            );
+            return;
+          }
+
+          // END
+          if (data.type === "end") {
+            searchData = {
+              ...searchData,
+              stages: [...searchData.stages, "writing"],
+            };
+
+            setMessages((prev) =>
+              prev.map((msg) =>
+                msg.id === aiId
+                  ? { ...msg, searchInfo: searchData, isLoading: false }
+                  : msg,
+              ),
+            );
+
+            eventSource.close();
+            setIsProcessing(false);
+          }
+        } catch (err) {
+          console.error("Parse error:", event.data);
+        }
+      };
+
+      eventSource.onerror = () => {
+        eventSource.close();
+        setIsProcessing(false);
+      };
+    } catch (err) {
+      console.error(err);
+      setIsProcessing(false);
     }
   };
 
   return (
-    <div className="flex justify-center bg-gray-100 min-h-screen py-8 px-4">
-      {/* Main container with refined shadow and border */}
-      <div className="w-[70%] bg-white flex flex-col rounded-xl shadow-lg border border-gray-100 overflow-hidden h-[90vh]">
+    <div className="flex h-screen bg-[#F8F9FB]">
+      {/* Sidebar */}
+      <aside className="w-72 bg-white border-r hidden lg:flex flex-col">
+        <div className="p-6">
+          <div className="flex items-center gap-2 mb-6">
+            <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center">
+              <BookOpen className="text-white w-5 h-5" />
+            </div>
+            <span className="font-bold text-lg">Orion AI</span>
+          </div>
+
+          <button
+            onClick={handleNewInquiry}
+            className="w-full py-3 bg-black text-white rounded-xl flex justify-center gap-2"
+          >
+            <RefreshCw className="w-4 h-4" />
+            New Chat
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-4">
+          <p className="text-xs text-gray-400 mb-3">History</p>
+
+          {history.map((item) => (
+            <div
+              key={item.id}
+              onClick={() => restoreHistory(item)}
+              className="p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 flex gap-2 mb-2"
+            >
+              <ChevronRight className="w-4 h-4" />
+              <span className="truncate text-sm">{item.query}</span>
+            </div>
+          ))}
+        </div>
+      </aside>
+
+      {/* Main */}
+      <main className="flex-1 flex flex-col">
         <Header />
-        <MessageArea messages={messages} />
-        <InputBar
-          currentMessage={currentMessage}
-          setCurrentMessage={setCurrentMessage}
-          onSubmit={handleSubmit}
-        />
-      </div>
+
+        <div
+          ref={scrollRef}
+          className="flex-1 overflow-y-auto px-6 py-6 space-y-6"
+        >
+          <MessageArea messages={messages} />
+        </div>
+
+        <div className="p-4 bg-white border-t">
+          <InputBar
+            currentMessage={currentMessage}
+            setCurrentMessage={setCurrentMessage}
+            onSubmit={handleSubmit}
+            disabled={isProcessing}
+          />
+        </div>
+      </main>
     </div>
   );
-};
-
-export default Home;
+}

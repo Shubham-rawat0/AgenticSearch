@@ -1,15 +1,10 @@
 import { useState } from "react";
 
-type InputBarProps = {
-  currentMessage: string;
-  setCurrentMessage: React.Dispatch<React.SetStateAction<string>>;
-  onSubmit: (e: React.FormEvent<HTMLFormElement>) => void;
-};
-
-const InputBar = ({currentMessage,setCurrentMessage, onSubmit,}: InputBarProps) => {
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+const InputBar = ({ currentMessage, setCurrentMessage, onSubmit }:any) => {
+  const handleChange = (e:any) => {
     setCurrentMessage(e.target.value);
   };
+
   return (
     <form onSubmit={onSubmit} className="p-4 bg-white">
       <div className="flex items-center bg-[#F9F9F5] rounded-full p-3 shadow-md border border-gray-200">
@@ -37,7 +32,7 @@ const InputBar = ({currentMessage,setCurrentMessage, onSubmit,}: InputBarProps) 
           placeholder="Type a message"
           value={currentMessage}
           onChange={handleChange}
-          className="grow px-4 py-2 bg-transparent focus:outline-none text-gray-700"
+          className="flex-grow px-4 py-2 bg-transparent focus:outline-none text-gray-700"
         />
         <button
           type="button"
