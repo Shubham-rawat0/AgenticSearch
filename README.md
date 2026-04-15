@@ -1,4 +1,4 @@
-# 🔍 Orion AI – Agentic Search Engine (Perplexity-like System)
+# Agentic Search Engine (Perplexity-like System)
 
 Orion AI is an **agentic search system** that combines real-time web search, LLM reasoning, and streaming responses to deliver accurate, source-backed answers.
 
